@@ -24,8 +24,22 @@ AWS_DEV_IMAGE_NAME=$(IMAGE_BASENAME)-dev-aws-$(VERSION)
 aws-dev:
 	./build.sh --features server,cloud,gardener,aws,_dev .build/aws-dev bullseye $(SNAPSHOT_DATE)
 
-aws-dev-upload:
 	./bin/make-ec2-ami --bucket ami-debian-image-test --region eu-central-1 --image-name=$(AWS_DEV_IMAGE_NAME) .build/aws-dev/$(SNAPSHOT_DATE)/amd64/bullseye/rootfs.raw --permission-public "$(PUBLIC)" --distribute "$(AWS_DISTRIBUTE)"
+
+AWS_CHOST_DEV_IMAGE_NAME=$(IMAGE_BASENAME)-chost-dev-aws-$(VERSION)
+aws-chost-dev:
+	./build.sh --features server,cloud,chost,aws,dev .build/aws-chost-dev bullseye $(SNAPSHOT_DATE)
+
+aws-chost-dev-upload:
+	./bin/make-ec2-ami --bucket ami-debian-image-test --region eu-central-1 --image-name=$(AWS_CHOST_DEV_IMAGE_NAME) .build/aws-chost-dev/$(SNAPSHOT_DATE)/amd64/bullseye/rootfs.raw
+
+ALI_DEV_IMAGE_NAME=$(IMAGE_BASENAME)-dev-ali-$(VERSION)
+ali-dev:
+	./build.sh --features server,cloud,ghost,ali,dev .build/ali-dev bullseye $(SNAPSHOT_DATE)
+
+ali-dev-upload:
+	aliyun oss cp .build/ali-dev/$(SNAPSHOT_DATE)/amd64/bullseye/rootfs.qcow2  oss://gardenlinux-development/gardenlinux/$(ALI_DEV_IMAGE_NAME).qcow2
+
 
 GCP_IMAGE_NAME=$(IMAGE_BASENAME)-gcp-$(VERSION)
 gcp:
@@ -40,6 +54,13 @@ gcp-dev:
 
 gcp-dev-upload:
 	./bin/make-gcp-ami --bucket garden-linux-test --image-name $(GCP_DEV_IMAGE_NAME) --raw-image-path .build/gcp-dev/$(SNAPSHOT_DATE)/amd64/bullseye/rootfs-gcpimage.tar.gz --permission-public "$(PUBLIC)"
+
+GCP_CHOST_DEV_IMAGE_NAME=$(IMAGE_BASENAME)-chost-dev-gcp-$(VERSION)
+chost-gcp-dev:
+	./build.sh --features server,cloud,chost,gcp,dev .build/chost-gcp-dev bullseye $(SNAPSHOT_DATE)
+
+chost-gcp-dev-upload:
+	./bin/make-gcp-ami --bucket garden-linux-test --image-name $(GCP_CHOST_DEV_IMAGE_NAME) --raw-image-path .build/chost-gcp-dev/$(SNAPSHOT_DATE)/amd64/bullseye/rootfs-gcpimage.tar.gz
 
 AZURE_IMAGE_NAME=$(IMAGE_BASENAME)-az-$(VERSION)
 azure:
