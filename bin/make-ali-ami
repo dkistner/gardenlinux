@@ -1,6 +1,6 @@
 #!/usr/bin/env bash 
 set -x
-VERSION=$1
+VERSION=43
 
 region=eu-central-1
 aliyun ecs ImportImage \
@@ -8,7 +8,7 @@ aliyun ecs ImportImage \
  --Platform=Debian \
  --ImageName="gardenlinux-dev-ali-$VERSION" \
  --DiskDeviceMapping.1.OSSBucket=gardenlinux-development \
- --DiskDeviceMapping.1.OSSObject="gardenlinux/garden-linux-dev-ali-41.qcow2" \
+ --DiskDeviceMapping.1.OSSObject="gardenlinux/garden-linux-dev-ali-43.qcow2" \
  --DiskDeviceMapping.1.Format=qcow2 \
  --DiskDeviceMapping.1.DiskImSize=5 \
  --RegionId=$region
