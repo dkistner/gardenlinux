@@ -308,6 +308,13 @@ class AzurePublishedImage:
 
 
 @dataclasses.dataclass(frozen=True)
+class OpenstackPublishedImage:
+    region_name: str
+    image_id: str
+    image_name: str
+
+
+@dataclasses.dataclass(frozen=True)
 class ReleaseManifest(ReleaseIdentifier):
     '''
     metadata for a gardenlinux release variant that can be (or was) published to a persistency
@@ -316,7 +323,8 @@ class ReleaseManifest(ReleaseIdentifier):
     build_timestamp: str
     paths: typing.Tuple[typing.Union[S3_ReleaseFile]]
     published_image_metadata: typing.Union[AlicloudPublishedImageSet,
-                                           AwsPublishedImageSet, AzurePublishedImage, GcpPublishedImage, None]
+                                           AwsPublishedImageSet, AzurePublishedImage,
+                                           GcpPublishedImage, OpenstackPublishedImage, None]
 
     def path_by_suffix(self, suffix: str):
         for path in self.paths:
@@ -466,8 +474,25 @@ class AzurePublishCfg:
 
 
 @dataclasses.dataclass(frozen=True)
+class OpenstackEnviroment:
+    auth_url: str
+    domain: str
+    region: str
+    project_name: str
+    username: str
+    password: str
+
+
+@dataclasses.dataclass(frozen=True)
+class OpenstackPublishCfg:
+    openrc: OpenstackEnviroment
+    properties: dict
+
+
+@dataclasses.dataclass(frozen=True)
 class PublishCfg:
     azure: AzurePublishCfg
+    openstack: OpenstackPublishCfg
 
 
 @dataclasses.dataclass(frozen=True)
@@ -657,12 +682,3 @@ def feature_by_name(feature_name: str):
             return feature
     raise ValueError(feature_name)
 
-
-@dataclasses.dataclass(frozen=True)
-class OpenRC:
-    auth_url: str
-    domain: str
-    region: str
-    project_name: str
-    username: str
-    password: str
