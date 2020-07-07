@@ -1,12 +1,11 @@
-import requests
 import dataclasses
-
-from enum import Enum
 from datetime import (
     datetime,
     timedelta,
 )
+from enum import Enum
 
+import requests
 from msal import ConfidentialClientApplication
 from azure.storage.blob import (
     BlobClient,
@@ -16,6 +15,25 @@ from azure.storage.blob import (
 )
 
 import glci.model
+
+
+"""
+The publishing process for an image to the Azure Marketplace consist of
+two sequences of steps.
+
+1. publishing steps - this include the upload of the image to an Azure StorageAccount,
+the update of the gardenlinux Marketplace spec, the trigger of the publish operation
+which will trigger the validation of the image on the Microsoft side and upload
+the image into their staging enviroment.
+Those steps are covered by the "upload_and_publish_image" function.
+
+2. check and approve steps – first the progress of the triggered publish operation
+will be checked. If the publish operation has been completed the go live operation
+will be triggered automatically. After that it will check for the progress of the
+go live operation and if this also has been completed it will return the urn of the image.
+Those steps are covered by the "check_offer_transport_state" function.
+It need to be called multiple times until the entire process has been completed.
+"""
 
 
 class AzureImageStore:
@@ -369,7 +387,7 @@ def check_offer_transport_state(
     """
 
     transport_state = release.published_image_metadata.transport_state
-    if transport_state == "released":
+    if transport_state == glci.model.AzureTransportState.RELEASED:
         return release
 
     marketplace_client = AzureMarketplaceClient(
@@ -390,15 +408,15 @@ def check_offer_transport_state(
     # Check first if the process has been failed.
     if operation_status == AzmpOperationState.FAILED:
         published_image = glci.model.AzurePublishedImage(
-            transport_state="failed",
+            transport_state=glci.model.AzureTransportState.FAILED,
             publish_operation_id=release.published_image_metadata.publish_operation_id,
         )
-        if release.published_image_metadata.transport_state == "going_live":
+        if release.published_image_metadata.transport_state == glci.model.AzureTransportState.GO_LIVE:
             published_image.golive_operation_id = release.published_image_metadata.golive_operation_id
         return dataclasses.replace(release, published_image_metadata=published_image)
 
     # Publish completed. Trigger go live to transport the offer changes to production.
-    if transport_state == "publishing" and operation_status == AzmpOperationState.SUCCEEDED:
+    if transport_state == glci.model.AzureTransportState.PUBLISH and operation_status == AzmpOperationState.SUCCEEDED:
         print("Publishing of gardenlinux offer to staging has been successfully completed. Trigger go live...")
         marketplace_client.go_live(publisher_id=publisher_id, offer_id=offer_id)
         golive_operation_id = marketplace_client.fetch_ongoing_operation_id(
@@ -407,17 +425,17 @@ def check_offer_transport_state(
             AzmpTransportDest.PROD,
         )
         published_image = glci.model.AzurePublishedImage(
-            transport_state="going_live",
+            transport_state=glci.model.AzureTransportState.GO_LIVE,
             publish_operation_id=release.published_image_metadata.publish_operation_id,
             golive_operation_id=golive_operation_id,
         )
         return dataclasses.replace(release, published_image_metadata=published_image)
 
     # Go Live completed. Done!
-    if transport_state == "going_live" and operation_status == AzmpOperationState.SUCCEEDED:
+    if transport_state == glci.model.AzureTransportState.GO_LIVE and operation_status == AzmpOperationState.SUCCEEDED:
         print("Tranport to production of gardenlinux offer succeeded.")
         published_image = glci.model.AzurePublishedImage(
-            transport_state="released",
+            transport_state=glci.model.AzureTransportState.RELEASED,
             publish_operation_id=release.published_image_metadata.publish_operation_id,
             golive_operation_id=release.published_image_metadata.golive_operation_id,
             urn=generate_urn(cicd_cfg.publish.azure.marketplace, release.version),
@@ -440,7 +458,7 @@ def upload_and_publish_image(
     # Copy image from s3 to Azure Storage Account
     target_blob_name = f"gardenlinux-az-{release.version}.vhd"
     image_url = copy_image_from_s3_to_az_storage_account(
-        storage_account_cfg=cicd_cfg.publish.azure.storate_account,
+        storage_account_cfg=cicd_cfg.publish.azure.storage_account,
         s3_client=s3_client,
         s3_bucket_name=release.path_by_suffix('rootfs.raw').s3_bucket_name,
         s3_object_key=release.path_by_suffix('rootfs.raw').s3_key,
@@ -457,7 +475,7 @@ def upload_and_publish_image(
     )
 
     published_image = glci.model.AzurePublishedImage(
-        transport_state="publishing",
+        transport_state=glci.model.AzureTransportState.PUBLISH,
         publish_operation_id=publish_operation_id,
     )
 
